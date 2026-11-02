@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BrowserFL Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="toolbar">
+    <div class="brand" data-tip="BrowserFL: a beginner-friendly music studio in your browser.">Browser<span>FL</span></div>
+
+    <div class="group transport">
+      <button id="btnPlay" class="tbtn play" data-tip="Play / pause (Space)." aria-label="Play">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M7 4v16l13-8z" fill="currentColor"/></svg>
+      </button>
+      <button id="btnStop" class="tbtn" data-tip="Stop and go back to the start." aria-label="Stop">
+        <svg viewBox="0 0 24 24" width="16" height="16"><rect x="5" y="5" width="14" height="14" fill="currentColor"/></svg>
+      </button>
+      <div class="seg" id="modeSeg" data-tip="PAT plays only the pattern you are editing. SONG plays your full arrangement from the Playlist.">
+        <button data-mode="pattern" class="on">PAT</button>
+        <button data-mode="song">SONG</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label class="field" data-tip="Tempo in beats per minute. Lo-fi ≈ 70–90, house ≈ 120–128, trap ≈ 130–150.">
+        <span>BPM</span><input id="bpm" type="number" min="40" max="220" step="1" value="120">
+      </label>
+      <label class="field" data-tip="Swing delays every second step to give a bouncy, human groove. Try 30–50% for lo-fi.">
+        <span>Swing</span><input id="swing" type="range" min="0" max="1" step="0.01" value="0">
+      </label>
+    </div>
+
+    <div class="group pattern-picker" data-tip="Patterns are short loops. Make a few (verse, chorus, drop) and arrange them in the Playlist.">
+      <span class="lbl">Pattern</span>
+      <select id="patSelect" aria-label="Current pattern"></select>
+      <select id="patLen" aria-label="Pattern length" data-tip="Pattern length. 1 bar = 16 steps.">
+        <option value="16">1 bar</option><option value="32">2 bars</option><option value="64">4 bars</option><option value="128">8 bars</option>
+      </select>
+      <button class="tbtn sm" id="patAdd" data-tip="Make a new empty pattern.">+ New</button>
+      <button class="tbtn sm" id="patClone" data-tip="Copy this pattern so you can make a variation of it.">Clone</button>
+      <button class="tbtn sm" id="patMore" data-tip="Rename or delete this pattern.">⋯</button>
+    </div>
+
+    <canvas id="scope" width="160" height="34" data-tip="Live view of your sound wave."></canvas>
+
+    <div class="group right">
+      <button class="tbtn sm" id="btnUndo" data-tip="Undo (Ctrl+Z).">Undo</button>
+      <button class="tbtn sm" id="btnRedo" data-tip="Redo (Ctrl+Shift+Z).">Redo</button>
+      <button class="tbtn sm" id="btnTemplates" data-tip="Start from a ready-made Trap, House or Lo-fi beat and remix it.">Templates</button>
+      <button class="tbtn sm" id="btnProjects" data-tip="Save your project in this browser, or open one you saved.">Save / Open</button>
+      <button class="tbtn sm accent" id="btnExport" data-tip="Render your music to a WAV audio file.">Export WAV</button>
+      <button class="tbtn sm" id="btnHelp" data-tip="Take the guided tour again." aria-label="Help">?</button>
+    </div>
+  </header>
+
+  <nav id="tabs" role="tablist">
+    <button data-view="rack" class="on" data-tip="Channel Rack (F6): your instruments and the step sequencer.">Channel Rack <kbd>F6</kbd></button>
+    <button data-view="piano" data-tip="Piano Roll (F7): draw melodies, chords and basslines.">Piano Roll <kbd>F7</kbd></button>
+    <button data-view="playlist" data-tip="Playlist (F5): arrange patterns into a full song.">Playlist <kbd>F5</kbd></button>
+    <button data-view="mixer" data-tip="Mixer (F9): balance volume, panning and effects.">Mixer <kbd>F9</kbd></button>
+  </nav>
+
+  <main id="views">
+    <!-- Channel rack -->
+    <section id="view-rack" class="view on">
+      <div class="rack-layout">
+        <div class="rack-scroll" id="rackScroll">
+          <div id="rack"></div>
+          <div class="rack-add">
+            <select id="addInst" aria-label="Instrument to add" data-tip="Choose an instrument, then press Add."></select>
+            <button class="tbtn sm" id="addChannel">+ Add channel</button>
+          </div>
+        </div>
+        <aside id="chPanel" class="panel"></aside>
+      </div>
+    </section>
+
+    <!-- Piano roll -->
+    <section id="view-piano" class="view">
+      <div class="pr-bar">
+        <label class="field"><span>Instrument</span><select id="prChannel" aria-label="Instrument being edited"></select></label>
+        <label class="field" data-tip="Snap: where notes can start and how they line up. Use 1/32 or triplets for fast hi-hat rolls.">
+          <span>Snap</span>
+          <select id="prSnap">
+            <option value="4">Beat (1/4)</option>
+            <option value="2">1/8</option>
+            <option value="1" selected>Step (1/16)</option>
+            <option value="0.6666667">1/16 triplet</option>
+            <option value="0.5">1/32</option>
+            <option value="0.3333333">1/32 triplet</option>
+          </select>
+        </label>
+        <label class="field" data-tip="Scale: rows in the scale are highlighted. Notes in the same scale always sound good together.">
+          <span>Scale</span>
+          <select id="prRoot" aria-label="Scale root"></select>
+          <select id="prScale" aria-label="Scale type"></select>
+        </label>
+        <label class="check" data-tip="Only let you place notes that are in the scale. Great when you are starting out.">
+          <input type="checkbox" id="prLock"> Scale notes only
+        </label>
+        <label class="field" data-tip="Chord stamp: one click places a full chord. 'Scale chord' picks the chord that fits the scale automatically.">
+          <span>Click places</span>
+          <select id="prChord">
+            <option value="">Single note</option>
+            <option value="scale3">Scale chord (3 notes)</option>
+            <option value="scale4">Scale chord (4 notes)</option>
+            <option value="maj">Major chord</option>
+            <option value="min">Minor chord</option>
+            <option value="oct">Octave</option>
+          </select>
+        </label>
+        <div class="spacer"></div>
+        <button class="tbtn sm" id="prOctDown" data-tip="Move every note of this instrument down one octave.">Oct −</button>
+        <button class="tbtn sm" id="prOctUp" data-tip="Move every note of this instrument up one octave.">Oct +</button>
+        <button class="tbtn sm" id="prClear" data-tip="Remove every note of this instrument in this pattern.">Clear</button>
+      </div>
+      <div class="pr-wrap" id="prWrap">
+        <div class="pr-inner">
+          <canvas id="prKeys"></canvas>
+          <canvas id="prGrid"></canvas>
+        </div>
+      </div>
+      <div class="pr-vel-wrap" id="prVelWrap" data-tip="Velocity: how hard each note is played. Drag up and down to change it.">
+        <div class="pr-vel-label">Velocity</div>
+        <div class="pr-vel-scroll" id="prVelScroll"><canvas id="prVel"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Playlist -->
+    <section id="view-playlist" class="view">
+      <div class="pl-layout">
+        <aside class="pl-patterns panel">
+          <div class="panel-title">Patterns</div>
+          <p class="muted small">Pick one, then click the grid to place it. Drag to move. Right-click to remove.</p>
+          <div id="plPatList"></div>
+        </aside>
+        <div class="pl-scroll" id="plScroll"><canvas id="plGrid"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Mixer -->
+    <section id="view-mixer" class="view">
+      <div class="mixer-scroll"><div id="mixer"></div></div>
+    </section>
+  </main>
+
+  <footer id="hint"><span id="hintText"></span></footer>
+</div>
+
+<div id="tooltip" role="tooltip" hidden></div>
+<div id="modal" class="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true">
+    <button class="modal-x" id="modalClose" aria-label="Close">×</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+<div id="tour" hidden>
+  <div id="tourSpot"></div>
+  <div id="tourCard">
+    <div class="tour-step" id="tourCount"></div>
+    <h3 id="tourTitle"></h3>
+    <p id="tourText"></p>
+    <div class="tour-actions">
+      <button class="tbtn sm" id="tourSkip">Skip tour</button>
+      <div class="spacer"></div>
+      <button class="tbtn sm" id="tourBack">Back</button>
+      <button class="tbtn sm accent" id="tourNext">Next</button>
+    </div>
+  </div>
+</div>
+<div id="toast" hidden></div>
+
+<script src="js/instruments.js"></script>
+<script src="js/project.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui-rack.js"></script>
+<script src="js/ui-piano.js"></script>
+<script src="js/ui-playlist.js"></script>
+<script src="js/ui-mixer.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
